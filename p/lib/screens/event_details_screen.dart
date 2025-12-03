@@ -1,11 +1,18 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:share_plus/share_plus.dart';
 import '../bloc/favorites/favorites_cubit.dart';
 import '../bloc/favorites/favorites_state.dart';
+import '../models/event.dart';
 
 class EventDetailsScreen extends StatefulWidget {
-  const EventDetailsScreen({Key? key}) : super(key: key);
+  final Event event;
+
+  const EventDetailsScreen({
+    Key? key,
+    required this.event,
+  }) : super(key: key);
 
   @override
   State<EventDetailsScreen> createState() => _EventDetailsScreenState();
@@ -13,7 +20,6 @@ class EventDetailsScreen extends StatefulWidget {
 
 class _EventDetailsScreenState extends State<EventDetailsScreen> {
   bool _showShareDialog = false;
-  final String eventId = '1'; // You can pass this as a parameter
 
   void _toggleShareDialog() {
     setState(() {
@@ -22,7 +28,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   }
 
   void _shareEvent(String platform) {
-    const eventText = 'Check out this event: Darshan Raval Music Show on 03 May, 2023 at Jurmount club';
+    final eventText = 'Check out this event: ${widget.event.title} on ${widget.event.date} at ${widget.event.location}';
 
     switch (platform) {
       case 'whatsapp':
@@ -79,8 +85,8 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                     height: 200,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
-                      image: const DecorationImage(
-                        image: NetworkImage('https://via.placeholder.com/400x200'),
+                      image: DecorationImage(
+                        image: NetworkImage(widget.event.imageUrl),
                         fit: BoxFit.cover,
                       ),
                     ),
@@ -171,9 +177,9 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            const Text(
-                              '+20 Going',
-                              style: TextStyle(
+                            Text(
+                              '+${widget.event.attendeesCount} Going',
+                              style: const TextStyle(
                                 color: Colors.black87,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
@@ -201,9 +207,9 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                         const SizedBox(height: 20),
 
                         // Event Title
-                        const Text(
-                          'Darshan Raval\nMusic Show',
-                          style: TextStyle(
+                        Text(
+                          widget.event.title,
+                          style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                             color: Colors.black,
@@ -234,16 +240,16 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
-                                    'Jurmount club',
-                                    style: TextStyle(
+                                  Text(
+                                    widget.event.location,
+                                    style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
                                       color: Colors.black87,
                                     ),
                                   ),
                                   Text(
-                                    '36 Guild Street London, UK',
+                                    widget.event.locationAddress,
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: Colors.grey[600],
@@ -262,9 +268,9 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                           children: [
                             Icon(Icons.calendar_today, color: Colors.grey[600], size: 20),
                             const SizedBox(width: 8),
-                            const Text(
-                              '03 May, 2023',
-                              style: TextStyle(
+                            Text(
+                              widget.event.date,
+                              style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.black87,
@@ -280,14 +286,14 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                           children: [
                             CircleAvatar(
                               radius: 20,
+                              backgroundImage: NetworkImage(widget.event.organizerImageUrl),
                               backgroundColor: Colors.grey[300],
-                              child: const Icon(Icons.person, color: Colors.grey),
                             ),
                             const SizedBox(width: 12),
-                            const Expanded(
+                            Expanded(
                               child: Text(
-                                'OYONOW',
-                                style: TextStyle(
+                                widget.event.organizerName,
+                                style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.black87,
@@ -316,7 +322,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
 
                         // Description
                         Text(
-                          'Enjoy your favorite dishe and a lovely your friends and family and have a great time. Food from local food trucks will be available for purchase.',
+                          widget.event.description,
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey[700],
@@ -355,9 +361,9 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                               ),
                               elevation: 0,
                             ),
-                            child: Row(
+                            child: const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
-                              children: const [
+                              children: [
                                 Text(
                                   'Register your seat',
                                   style: TextStyle(
@@ -391,11 +397,11 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
               children: [
                 BlocBuilder<FavoritesCubit, FavoritesState>(
                   builder: (context, state) {
-                    final isFavorite = state.favoriteEventIds.contains(eventId);
+                    final isFavorite = state.favoriteEventIds.contains(widget.event.id);
                     return FloatingActionButton(
                       heroTag: 'favorite',
                       onPressed: () {
-                        context.read<FavoritesCubit>().toggleFavorite(eventId);
+                        context.read<FavoritesCubit>().toggleFavorite(widget.event.id);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(isFavorite ? 'Removed from favorites' : 'Added to favorites'),

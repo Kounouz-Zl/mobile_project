@@ -1,62 +1,173 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../repositories/events_repository.dart';
 import '../../models/event_model.dart';
+import '../../models/event.dart';
+import '../../databases/database_helper.dart';
 import 'events_state.dart';
 
 class EventsCubit extends Cubit<EventsState> {
   final EventsRepository eventsRepository;
-  List<EventModel> _allEvents = [];
-  String? _currentCategory;
+  final DatabaseHelper databaseHelper = DatabaseHelper.instance;
+  List<Event> _allEvents = [];
+  String _searchQuery = '';
 
-  EventsCubit({required this.eventsRepository}) : super(const EventsInitial());
+  EventsCubit({required this.eventsRepository}) : super(EventsInitial());
+
+  // Convert EventModel to Event
+  Event _convertEventModelToEvent(EventModel model) {
+    return Event(
+      id: model.id,
+      title: model.title,
+      description: model.description,
+      location: model.location,
+      locationAddress: model.location, // Use location as address if not available
+      date: model.date,
+      imageUrl: model.imagePath,
+      organizerName: model.organizer,
+      organizerImageUrl: 'https://via.placeholder.com/100', // Default placeholder
+      attendeesCount: model.attendees,
+    );
+  }
 
   Future<void> fetchEvents() async {
-    emit(const EventsLoading());
+    emit(EventsLoading());
 
     try {
-      final events = await eventsRepository.fetchEvents();
-      _allEvents = events;
-      emit(EventsLoaded(events: events));
+      // Fetch from both repository and database
+      final repoEvents = await eventsRepository.fetchEvents();
+      final dbEvents = await databaseHelper.getAllEvents();
+      
+      // Convert EventModel to Event
+      final convertedRepoEvents = repoEvents.map((e) => _convertEventModelToEvent(e)).toList();
+      
+      // Combine and deduplicate by ID
+      final Map<String, Event> eventsMap = {};
+      for (var event in convertedRepoEvents) {
+        eventsMap[event.id] = event;
+      }
+      for (var event in dbEvents) {
+        eventsMap[event.id] = event;
+      }
+      
+      _allEvents = eventsMap.values.toList();
+      emit(EventsLoaded(events: _allEvents, searchQuery: _searchQuery));
     } catch (e) {
-      emit(EventsError(message: e.toString()));
+      emit(EventsError(e.toString()));
     }
   }
 
+  Future<void> loadEvents() async {
+    await fetchEvents();
+  }
+
   Future<void> searchEvents(String query) async {
-    emit(const EventsLoading());
+    _searchQuery = query;
+    
+    if (query.isEmpty) {
+      emit(EventsLoaded(events: _allEvents, searchQuery: ''));
+      return;
+    }
 
     try {
-      final events = await eventsRepository.searchEvents(query);
-      emit(EventsLoaded(events: events, selectedCategory: _currentCategory));
+      final repoEvents = await eventsRepository.searchEvents(query);
+      final convertedRepoEvents = repoEvents.map((e) => _convertEventModelToEvent(e)).toList();
+      
+      // Also search in database events
+      final dbEvents = await databaseHelper.getAllEvents();
+      final filteredDbEvents = dbEvents.where((event) {
+        return event.title.toLowerCase().contains(query.toLowerCase()) ||
+            event.location.toLowerCase().contains(query.toLowerCase()) ||
+            event.description.toLowerCase().contains(query.toLowerCase());
+      }).toList();
+      
+      // Combine results
+      final Map<String, Event> eventsMap = {};
+      for (var event in convertedRepoEvents) {
+        eventsMap[event.id] = event;
+      }
+      for (var event in filteredDbEvents) {
+        eventsMap[event.id] = event;
+      }
+      
+      final filteredEvents = eventsMap.values.toList();
+      emit(EventsLoaded(
+        events: _allEvents,
+        filteredEvents: filteredEvents,
+        searchQuery: query,
+      ));
     } catch (e) {
-      emit(EventsError(message: e.toString()));
+      emit(EventsError(e.toString()));
     }
   }
 
   Future<void> filterByCategory(String? category) async {
-    emit(const EventsLoading());
+    emit(EventsLoading());
 
     try {
-      _currentCategory = category;
       final events = category == null || category.isEmpty
           ? _allEvents
-          : await eventsRepository.filterByCategory(category);
-      emit(EventsLoaded(events: events, selectedCategory: category));
+          : (await eventsRepository.filterByCategory(category))
+              .map((e) => _convertEventModelToEvent(e))
+              .toList();
+      emit(EventsLoaded(events: events, searchQuery: _searchQuery));
     } catch (e) {
-      emit(EventsError(message: e.toString()));
+      emit(EventsError(e.toString()));
     }
   }
 
-  Future<EventModel?> getEventById(String id) async {
+  Future<Event?> getEventById(String id) async {
     try {
-      return await eventsRepository.getEventById(id);
+      // First try database
+      final dbEvent = await databaseHelper.getEventById(id);
+      if (dbEvent != null) {
+        return dbEvent;
+      }
+      
+      // Then try repository
+      final repoEvent = await eventsRepository.getEventById(id);
+      if (repoEvent != null) {
+        return _convertEventModelToEvent(repoEvent);
+      }
+      
+      return null;
     } catch (e) {
       return null;
     }
   }
 
+  Future<void> addEvent(Event event) async {
+    try {
+      await databaseHelper.insertEvent(event);
+      _allEvents.add(event);
+      emit(EventAdded(event));
+      // Refresh the list
+      await fetchEvents();
+    } catch (e) {
+      emit(EventsError(e.toString()));
+    }
+  }
+
+  Future<void> updateEvent(Event event) async {
+    try {
+      await databaseHelper.updateEvent(event);
+      final index = _allEvents.indexWhere((e) => e.id == event.id);
+      if (index != -1) {
+        _allEvents[index] = event;
+      }
+      emit(EventUpdated(event));
+      // Refresh the list
+      await fetchEvents();
+    } catch (e) {
+      emit(EventsError(e.toString()));
+    }
+  }
+
+  void resetFilters() {
+    _searchQuery = '';
+    emit(EventsLoaded(events: _allEvents, searchQuery: ''));
+  }
+
   void clearFilter() {
-    _currentCategory = null;
-    emit(EventsLoaded(events: _allEvents));
+    resetFilters();
   }
 }

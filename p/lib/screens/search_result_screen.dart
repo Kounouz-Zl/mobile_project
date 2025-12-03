@@ -154,19 +154,18 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
                       );
                     }
 
+                    final eventsToShow = state.searchQuery.isEmpty 
+                        ? state.events 
+                        : state.filteredEvents;
+                    
                     return ListView.builder(
                       padding: const EdgeInsets.all(16),
-                      itemCount: state.events.length,
+                      itemCount: eventsToShow.length,
                       itemBuilder: (context, index) {
-                        final event = state.events[index];
+                        final event = eventsToShow[index];
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12),
-                          child: _buildSearchResultCard(
-                            event.id,
-                            event.title,
-                            event.location,
-                            event.imagePath,
-                          ),
+                          child: _buildSearchResultCard(event),
                         );
                       },
                     );
@@ -182,13 +181,18 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
     );
   }
 
-  Widget _buildSearchResultCard(String eventId, String title, String location, String imagePath) {
+  Widget _buildSearchResultCard(event) {
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const EventDetailsScreen()),
-        );
+      onTap: () async {
+        final eventData = await context.read<EventsCubit>().getEventById(event.id);
+        if (eventData != null && mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => EventDetailsScreen(event: eventData),
+            ),
+          );
+        }
       },
       child: Container(
         decoration: BoxDecoration(
@@ -200,8 +204,8 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.asset(
-                imagePath,
+              child: Image.network(
+                event.imageUrl,
                 width: 80,
                 height: 80,
                 fit: BoxFit.cover,
@@ -221,7 +225,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    title,
+                    event.title,
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 15,
@@ -233,7 +237,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
                       const Icon(Icons.location_on_outlined, size: 14, color: Colors.grey),
                       const SizedBox(width: 4),
                       Text(
-                        location,
+                        event.location,
                         style: TextStyle(
                           color: Colors.grey.shade600,
                           fontSize: 13,
@@ -246,14 +250,14 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
             ),
             BlocBuilder<FavoritesCubit, FavoritesState>(
               builder: (context, state) {
-                final isFavorite = state.favoriteEventIds.contains(eventId);
+                final isFavorite = state.favoriteEventIds.contains(event.id);
                 return IconButton(
                   icon: Icon(
                     isFavorite ? Icons.favorite : Icons.favorite_border,
                     color: Colors.red,
                   ),
                   onPressed: () {
-                    context.read<FavoritesCubit>().toggleFavorite(eventId);
+                    context.read<FavoritesCubit>().toggleFavorite(event.id);
                   },
                 );
               },

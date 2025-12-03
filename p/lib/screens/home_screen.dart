@@ -8,6 +8,8 @@ import 'search_result_screen.dart';
 import 'event_details_screen.dart';
 import 'events_screen.dart';
 import 'profile_drawer_screen.dart';
+import 'favourites_screan.dart';
+import 'add_event_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -61,7 +63,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.orange[400],
                     ),
-                    child: const Text('Retry', style: TextStyle(color: Colors.white)),
+                    child: const Text('Retry',
+                        style: TextStyle(color: Colors.white)),
                   ),
                 ],
               ),
@@ -99,7 +102,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
                       decoration: BoxDecoration(
                         color: Colors.grey.shade200,
                         borderRadius: BorderRadius.circular(12),
@@ -156,7 +160,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   _buildSectionHeader(context, 'Upcoming Events', () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const SearchResultScreen()),
+                      MaterialPageRoute(
+                          builder: (context) => const SearchResultScreen()),
                     );
                   }),
                   const SizedBox(height: 12),
@@ -164,10 +169,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         padding: const EdgeInsets.only(bottom: 12),
                         child: _buildUpcomingEventCard(
                           context,
-                          event.id,
-                          event.title,
-                          event.location,
-                          event.imagePath,
+                          event,
                         ),
                       )),
                   const SizedBox(height: 24),
@@ -187,12 +189,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           padding: const EdgeInsets.only(right: 16),
                           child: _buildPopularCard(
                             context,
-                            event.id,
-                            event.title,
-                            event.date,
-                            event.price,
-                            event.imagePath,
-                            event.category,
+                            event,
                           ),
                         );
                       },
@@ -201,16 +198,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 24),
 
                   // Recommendations Section
-                  _buildSectionHeader(context, 'Recommendations for you', () {}),
+                  _buildSectionHeader(
+                      context, 'Recommendations for you', () {}),
                   const SizedBox(height: 12),
                   ...events.map((event) => _buildRecommendationCard(
                         context,
-                        event.id,
-                        event.title,
-                        event.location,
-                        event.price,
-                        event.imagePath,
-                        isFree: event.isFree,
+                        event,
                       )),
                   const SizedBox(height: 80),
                 ],
@@ -246,7 +239,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSectionHeader(BuildContext context, String title, VoidCallback onSeeAll) {
+  Widget _buildSectionHeader(
+      BuildContext context, String title, VoidCallback onSeeAll) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
@@ -270,17 +264,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildUpcomingEventCard(
     BuildContext context,
-    String eventId,
-    String title,
-    String location,
-    String imagePath,
+    event,
   ) {
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const EventDetailsScreen()),
-        );
+      onTap: () async {
+        final eventData =
+            await context.read<EventsCubit>().getEventById(event.id);
+        if (eventData != null && mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => EventDetailsScreen(event: eventData),
+            ),
+          );
+        }
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -297,8 +294,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   topLeft: Radius.circular(12),
                   bottomLeft: Radius.circular(12),
                 ),
-                child: Image.asset(
-                  imagePath,
+                child: Image.network(
+                  event.imageUrl,
                   width: 80,
                   height: 80,
                   fit: BoxFit.cover,
@@ -319,7 +316,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        title,
+                        event.title,
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
@@ -328,10 +325,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 6),
                       Row(
                         children: [
-                          const Icon(Icons.location_on_outlined, size: 14, color: Colors.grey),
+                          const Icon(Icons.location_on_outlined,
+                              size: 14, color: Colors.grey),
                           const SizedBox(width: 4),
                           Text(
-                            location,
+                            event.location,
                             style: TextStyle(
                               color: Colors.grey.shade600,
                               fontSize: 12,
@@ -345,7 +343,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               Container(
                 margin: const EdgeInsets.only(right: 12),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                   color: Colors.red.shade400,
                   borderRadius: BorderRadius.circular(8),
@@ -367,19 +366,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildPopularCard(
     BuildContext context,
-    String eventId,
-    String title,
-    String date,
-    String price,
-    String imagePath,
-    String tag,
+    event,
   ) {
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const EventDetailsScreen()),
-        );
+      onTap: () async {
+        final eventData =
+            await context.read<EventsCubit>().getEventById(event.id);
+        if (eventData != null && mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => EventDetailsScreen(event: eventData),
+            ),
+          );
+        }
       },
       child: Container(
         width: 200,
@@ -404,8 +404,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     topLeft: Radius.circular(16),
                     topRight: Radius.circular(16),
                   ),
-                  child: Image.asset(
-                    imagePath,
+                  child: Image.network(
+                    event.imageUrl,
                     width: 200,
                     height: 140,
                     fit: BoxFit.cover,
@@ -414,7 +414,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         width: 200,
                         height: 140,
                         color: Colors.grey.shade300,
-                        child: const Icon(Icons.image, color: Colors.grey, size: 50),
+                        child: const Icon(Icons.image,
+                            color: Colors.grey, size: 50),
                       );
                     },
                   ),
@@ -423,17 +424,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   top: 8,
                   left: 8,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.orange.shade100,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.local_movies, size: 14, color: Colors.orange.shade700),
+                        Icon(Icons.local_movies,
+                            size: 14, color: Colors.orange.shade700),
                         const SizedBox(width: 4),
                         Text(
-                          tag,
+                          'Event',
                           style: TextStyle(
                             fontSize: 11,
                             color: Colors.orange.shade700,
@@ -449,10 +452,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   right: 8,
                   child: BlocBuilder<FavoritesCubit, FavoritesState>(
                     builder: (context, state) {
-                      final isFavorite = state.favoriteEventIds.contains(eventId);
+                      final isFavorite =
+                          state.favoriteEventIds.contains(event.id);
                       return GestureDetector(
                         onTap: () {
-                          context.read<FavoritesCubit>().toggleFavorite(eventId);
+                          context
+                              .read<FavoritesCubit>()
+                              .toggleFavorite(event.id);
                         },
                         child: CircleAvatar(
                           backgroundColor: Colors.white,
@@ -475,7 +481,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    title,
+                    event.title,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 15,
@@ -485,7 +491,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    date,
+                    event.date,
                     style: TextStyle(
                       color: Colors.grey.shade600,
                       fontSize: 11,
@@ -502,14 +508,15 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: CircleAvatar(
                               radius: 10,
                               backgroundColor: Colors.grey.shade300,
-                              child: const Icon(Icons.person, size: 12, color: Colors.grey),
+                              child: const Icon(Icons.person,
+                                  size: 12, color: Colors.grey),
                             ),
                           ),
                         ),
                       ),
                       const Spacer(),
                       Text(
-                        price,
+                        '${event.attendeesCount} going',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
@@ -528,19 +535,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildRecommendationCard(
     BuildContext context,
-    String eventId,
-    String title,
-    String location,
-    String price,
-    String imagePath, {
-    bool isFree = false,
-  }) {
+    event,
+  ) {
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const EventDetailsScreen()),
-        );
+      onTap: () async {
+        final eventData =
+            await context.read<EventsCubit>().getEventById(event.id);
+        if (eventData != null && mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => EventDetailsScreen(event: eventData),
+            ),
+          );
+        }
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -557,8 +565,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   topLeft: Radius.circular(12),
                   bottomLeft: Radius.circular(12),
                 ),
-                child: Image.asset(
-                  imagePath,
+                child: Image.network(
+                  event.imageUrl,
                   width: 70,
                   height: 70,
                   fit: BoxFit.cover,
@@ -579,7 +587,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        title,
+                        event.title,
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
@@ -590,10 +598,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 6),
                       Row(
                         children: [
-                          const Icon(Icons.location_on_outlined, size: 12, color: Colors.grey),
+                          const Icon(Icons.location_on_outlined,
+                              size: 12, color: Colors.grey),
                           const SizedBox(width: 4),
                           Text(
-                            location,
+                            event.location,
                             style: TextStyle(
                               color: Colors.grey.shade600,
                               fontSize: 11,
@@ -607,15 +616,16 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               Container(
                 margin: const EdgeInsets.only(right: 12),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
-                  color: isFree ? Colors.green.shade400 : Colors.grey.shade300,
+                  color: Colors.grey.shade300,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  price,
-                  style: TextStyle(
-                    color: isFree ? Colors.white : Colors.black87,
+                  '${event.attendeesCount}',
+                  style: const TextStyle(
+                    color: Colors.black87,
                     fontWeight: FontWeight.w600,
                     fontSize: 12,
                   ),
@@ -667,21 +677,24 @@ class _HomeScreenState extends State<HomeScreen> {
               break;
             case 2:
               // Add event (center button)
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Create event feature coming soon')),
-              );
+              Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const AddEventScreen()),
+    );
               break;
             case 3:
               // Favorites
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Favorites feature coming soon')),
-              );
+              Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const FavoritesScreen()),
+    );
               break;
             case 4:
               // Navigate to Profile Drawer
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const ProfileDrawerScreen()),
+                MaterialPageRoute(
+                    builder: (context) => const ProfileDrawerScreen()),
               );
               break;
           }
