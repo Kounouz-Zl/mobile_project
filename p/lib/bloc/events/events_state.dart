@@ -1,39 +1,31 @@
 import 'package:equatable/equatable.dart';
-import '../../models/event_model.dart';
+import '../../models/event.dart';
 
 abstract class EventsState extends Equatable {
   const EventsState();
 
   @override
-  List<Object?> get props => [];
+  List<Object> get props => [];
 }
 
-class EventsInitial extends EventsState {
-  const EventsInitial();
-}
+class EventsInitial extends EventsState {}
 
-class EventsLoading extends EventsState {
-  const EventsLoading();
-}
+class EventsLoading extends EventsState {}
 
 class EventsLoaded extends EventsState {
-  final List<EventModel> events;
-  final String? selectedCategory;
+  final List<Event> events;
 
-  const EventsLoaded({
-    required this.events,
-    this.selectedCategory,
-  });
+  const EventsLoaded(this.events);
 
   @override
-  List<Object?> get props => [events, selectedCategory];
+  List<Object> get props => [events];
 }
 
 class EventsError extends EventsState {
   final String message;
 
-  const EventsError({required this.message});
+  const EventsError(this.message);
 
   @override
-  List<Object?> get props => [message];
+  List<Object> get props => [message];
 }

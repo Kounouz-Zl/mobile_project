@@ -1,26 +1,24 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:p/database_helper.dart';
 import 'favorites_state.dart';
 
 class FavoritesCubit extends Cubit<FavoritesState> {
-  FavoritesCubit() : super(const FavoritesState(favoriteEventIds: {}));
+  final DatabaseHelper _dbHelper;
 
-  void toggleFavorite(String eventId) {
-    final favorites = Set<String>.from(state.favoriteEventIds);
+  FavoritesCubit(this._dbHelper) : super(const FavoritesState({}));
 
-    if (favorites.contains(eventId)) {
-      favorites.remove(eventId);
+  void fetchFavorites() async {
+    final favoriteIds = await _dbHelper.getFavoriteEventIds();
+    emit(FavoritesState(favoriteIds.toSet()));
+  }
+
+  void toggleFavorite(String eventId) async {
+    final isCurrentlyFavorite = state.favoriteEventIds.contains(eventId);
+    if (isCurrentlyFavorite) {
+      await _dbHelper.deleteFavorite(eventId);
     } else {
-      favorites.add(eventId);
+      await _dbHelper.insertFavorite(eventId);
     }
-
-    emit(state.copyWith(favoriteEventIds: favorites));
-  }
-
-  bool isFavorite(String eventId) {
-    return state.favoriteEventIds.contains(eventId);
-  }
-
-  void clearFavorites() {
-    emit(const FavoritesState(favoriteEventIds: {}));
+    fetchFavorites();
   }
 }
