@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:sqflite/sqflite.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/home_screen.dart';
 import 'bloc/auth/auth_bloc.dart';
@@ -12,8 +13,11 @@ import 'bloc/categories/categories_cubit.dart';
 import 'repositories/auth_repository.dart';
 import 'repositories/events_repository.dart';
 import 'repositories/user_repository.dart';
+import 'database_helper.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await DatabaseHelper().database;
   runApp(const MyApp());
 }
 

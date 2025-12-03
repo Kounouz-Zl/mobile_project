@@ -8,6 +8,8 @@ import 'search_result_screen.dart';
 import 'event_details_screen.dart';
 import 'events_screen.dart';
 import 'profile_drawer_screen.dart';
+import 'add_event_screen.dart';
+import 'favorites_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -667,14 +669,16 @@ class _HomeScreenState extends State<HomeScreen> {
               break;
             case 2:
               // Add event (center button)
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Create event feature coming soon')),
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AddEventScreen()),
               );
               break;
             case 3:
               // Favorites
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Favorites feature coming soon')),
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const FavoritesScreen()),
               );
               break;
             case 4:
