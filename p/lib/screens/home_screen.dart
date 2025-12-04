@@ -10,6 +10,9 @@ import 'events_screen.dart';
 import 'profile_drawer_screen.dart';
 import 'favourites_screan.dart';
 import 'add_event_screen.dart';
+import 'upcoming_events_screen.dart';
+import 'popular_events_screen.dart';
+import 'recommended_events_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -158,53 +161,31 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   // Upcoming Events Section
                   _buildSectionHeader(context, 'Upcoming Events', () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const SearchResultScreen()),
-                    );
-                  }),
-                  const SizedBox(height: 12),
-                  ...events.take(2).map((event) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _buildUpcomingEventCard(
-                          context,
-                          event,
-                        ),
-                      )),
-                  const SizedBox(height: 24),
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => const UpcomingEventsScreen(),
+    ),
+  );
+}),
 
-                  // Popular Now Section
-                  _buildSectionHeader(context, 'Popular Now', () {}),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 280,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: events.length > 4 ? 4 : events.length,
-                      itemBuilder: (context, index) {
-                        final event = events[index];
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 16),
-                          child: _buildPopularCard(
-                            context,
-                            event,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 24),
+_buildSectionHeader(context, 'Popular Now', () {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => const PopularEventsScreen(),
+    ),
+  );
+}),
 
-                  // Recommendations Section
-                  _buildSectionHeader(
-                      context, 'Recommendations for you', () {}),
-                  const SizedBox(height: 12),
-                  ...events.map((event) => _buildRecommendationCard(
-                        context,
-                        event,
-                      )),
+_buildSectionHeader(context, 'Recommendations for you', () {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => const RecommendedEventsScreen(),
+    ),
+  );
+}),
                   const SizedBox(height: 80),
                 ],
               ),

@@ -11,6 +11,7 @@ class Event extends Equatable {
   final String organizerName;
   final String organizerImageUrl;
   final int attendeesCount;
+  final String? category;
 
   const Event({
     required this.id,
@@ -23,6 +24,7 @@ class Event extends Equatable {
     required this.organizerName,
     required this.organizerImageUrl,
     this.attendeesCount = 0,
+    this.category,
   });
 
   Map<String, dynamic> toJson() {
@@ -37,6 +39,7 @@ class Event extends Equatable {
       'organizerName': organizerName,
       'organizerImageUrl': organizerImageUrl,
       'attendeesCount': attendeesCount,
+      'category': category,
     };
   }
 
@@ -52,6 +55,7 @@ class Event extends Equatable {
       organizerName: json['organizerName'] ?? '',
       organizerImageUrl: json['organizerImageUrl'] ?? '',
       attendeesCount: json['attendeesCount'] ?? 0,
+      category: json['category'],
     );
   }
 
@@ -66,6 +70,7 @@ class Event extends Equatable {
     String? organizerName,
     String? organizerImageUrl,
     int? attendeesCount,
+    String? category,
   }) {
     return Event(
       id: id ?? this.id,
@@ -78,6 +83,7 @@ class Event extends Equatable {
       organizerName: organizerName ?? this.organizerName,
       organizerImageUrl: organizerImageUrl ?? this.organizerImageUrl,
       attendeesCount: attendeesCount ?? this.attendeesCount,
+      category: category ?? this.category,
     );
   }
 
@@ -93,5 +99,6 @@ class Event extends Equatable {
         organizerName,
         organizerImageUrl,
         attendeesCount,
+        category,
       ];
 }

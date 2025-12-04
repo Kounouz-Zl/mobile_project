@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:io' show Platform;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -89,13 +89,14 @@ class MyApp extends StatelessWidget {
             useMaterial3: true,
           ),
           home: BlocBuilder<AuthBloc, AuthState>(
-            builder: (context, state) {
-              if (state is AuthAuthenticated) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  context.read<UserCubit>().setUser(state.user);
-                });
-                return const HomeScreen();
-              }
+  builder: (context, state) {
+    if (state is AuthAuthenticated) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        context.read<UserCubit>().setUser(state.user);
+        context.read<FavoritesCubit>().setUserId(state.user.id); // Add this
+      });
+      return const HomeScreen();
+    }
 
               if (state is AuthLoading) {
                 return const Scaffold(

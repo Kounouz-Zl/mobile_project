@@ -6,6 +6,7 @@ import '../bloc/auth/auth_event.dart';
 import '../bloc/user/user_cubit.dart';
 import 'signup_screen.dart';
 import 'create_username_screen.dart';
+import 'reset_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -181,20 +182,24 @@ class _LoginScreenState extends State<LoginScreen> {
                   // Forgot Password
                   Align(
                     alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Forgot password feature coming soon')),
-                        );
-                      },
-                      child: Text(
-                        'Forgot Password ?',
-                        style: TextStyle(
-                          color: Colors.grey[700],
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
+                    child: // In login_screen.dart, update the forgot password button:
+TextButton(
+  onPressed: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const ResetPasswordScreen(),
+      ),
+    );
+  },
+  child: Text(
+    'Forgot Password ?',
+    style: TextStyle(
+      color: Colors.grey[700],
+      fontSize: 14,
+    ),
+  ),
+),
                   ),
 
                   const SizedBox(height: 16),

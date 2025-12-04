@@ -350,9 +350,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                           height: 56,
                           child: ElevatedButton(
                             onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Registration feature coming soon')),
-                              );
+                             joinEvent(widget.event.id);
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFE85D75),

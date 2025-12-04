@@ -1,10 +1,13 @@
+// screens/profile_photo_screen.dart
 import 'package:flutter/material.dart';
-
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
+import '../bloc/user/user_cubit.dart';
+import 'dart:io';
 import 'select_event_screen.dart';
 
 class ProfilePhotoScreen extends StatefulWidget {
   final String username;
-
   const ProfilePhotoScreen({super.key, required this.username});
 
   @override
@@ -12,6 +15,32 @@ class ProfilePhotoScreen extends StatefulWidget {
 }
 
 class _ProfilePhotoScreenState extends State<ProfilePhotoScreen> {
+  String? _selectedPhotoUrl;
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 500,
+        maxHeight: 500,
+      );
+      
+      if (image != null) {
+        setState(() {
+          _selectedPhotoUrl = image.path;
+        });
+        
+        // Update in cubit
+        await context.read<UserCubit>().updateProfilePhoto(image.path);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error picking image: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -65,7 +94,6 @@ class _ProfilePhotoScreenState extends State<ProfilePhotoScreen> {
                 ],
               ),
               const SizedBox(height: 40),
-              // Title
               const Text(
                 'Choose your photo profile',
                 style: TextStyle(
@@ -83,76 +111,50 @@ class _ProfilePhotoScreenState extends State<ProfilePhotoScreen> {
                 ),
               ),
               const SizedBox(height: 40),
-              // Profile photo section
               Center(
                 child: Column(
                   children: [
-                    Stack(
-                      children: [
-                        Container(
-                          width: 140,
-                          height: 140,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.grey.shade300, width: 2),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(18),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [Colors.grey.shade300, Colors.grey.shade400],
+                    GestureDetector(
+                      onTap: _pickImage,
+                      child: Container(
+                        width: 140,
+                        height: 140,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.grey.shade300, width: 2),
+                        ),
+                        child: _selectedPhotoUrl != null
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(18),
+                                child: Image.file(
+                                  File(_selectedPhotoUrl!),
+                                  fit: BoxFit.cover,
                                 ),
+                              )
+                            : Icon(
+                                Icons.add_a_photo,
+                                size: 50,
+                                color: Colors.grey.shade400,
                               ),
-                              child: Icon(
-                                Icons.person,
-                                size: 70,
-                                color: Colors.blue.shade900,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          right: 0,
-                          top: 0,
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.grey.shade300),
-                            ),
-                            child: const Icon(Icons.lock_outline, size: 16),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                    const SizedBox(height: 32),
-                    // Three plus buttons
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildAddPhotoButton(),
-                        const SizedBox(width: 16),
-                        _buildAddPhotoButton(),
-                        const SizedBox(width: 16),
-                        _buildAddPhotoButton(),
-                      ],
+                    const SizedBox(height: 16),
+                    TextButton.icon(
+                      onPressed: _pickImage,
+                      icon: const Icon(Icons.photo_library),
+                      label: const Text('Choose Photo'),
                     ),
                   ],
                 ),
               ),
               const Spacer(),
-              // Next button
               SizedBox(
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.push(
+                    Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
                         builder: (context) => SelectEventScreen(
@@ -182,27 +184,6 @@ class _ProfilePhotoScreenState extends State<ProfilePhotoScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildAddPhotoButton() {
-    return Container(
-      width: 70,
-      height: 70,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: IconButton(
-        icon: Icon(Icons.add, color: Colors.grey.shade600),
-        onPressed: () {
-          // Handle photo selection - you can integrate image_picker here
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Photo selection coming soon')),
-          );
-        },
       ),
     );
   }
