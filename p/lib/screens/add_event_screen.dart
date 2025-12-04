@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../bloc/events/events_cubit.dart';
 import '../models/event.dart';
+import '../databases/database_helper.dart';
 
 class AddEventScreen extends StatefulWidget {
   final Event? eventToEdit;
@@ -87,10 +88,10 @@ class _AddEventScreenState extends State<AddEventScreen> {
     }
   }
 
-  Future<void> _saveEvent() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+Future<void> _saveEvent() async {
+  if (!_formKey.currentState!.validate()) {
+    return;
+  }
 
     if (_selectedDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(

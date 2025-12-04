@@ -27,7 +27,7 @@ class _RecommendedEventsScreenState extends State<RecommendedEventsScreen> {
     final userCubit = context.read<UserCubit>();
     final userCategories = userCubit.currentUser?.selectedCategories ?? [];
     
-    final events = await db.getRecommendedEvents(userCategories, limit: 50);
+    final events = await db.getAllRecommendedEvents(userCategories);
     setState(() {
       recommendedEvents = events;
       isLoading = false;

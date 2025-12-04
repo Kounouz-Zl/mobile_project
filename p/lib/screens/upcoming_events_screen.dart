@@ -4,7 +4,7 @@ import '../bloc/events/events_cubit.dart';
 import '../bloc/user/user_cubit.dart';
 import '../models/event.dart';
 import 'event_details_screen.dart';
-
+import '';
 class UpcomingEventsScreen extends StatefulWidget {
   const UpcomingEventsScreen({Key? key}) : super(key: key);
 
@@ -27,7 +27,7 @@ class _UpcomingEventsScreenState extends State<UpcomingEventsScreen> {
     final userCubit = context.read<UserCubit>();
     final userCategories = userCubit.currentUser?.selectedCategories ?? [];
     
-    final events = await db.getUpcomingEvents(userCategories, limit: 50);
+    final events = await db.getAllUpcomingEventsByPreferences(userCategories);
     setState(() {
       upcomingEvents = events;
       isLoading = false;

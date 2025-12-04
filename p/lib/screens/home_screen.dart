@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../bloc/events/events_cubit.dart';
-import '../bloc/events/events_state.dart';
+import '../bloc/user/user_cubit.dart';
+import '../bloc/user/user_state.dart';
 import '../bloc/favorites/favorites_cubit.dart';
 import '../bloc/favorites/favorites_state.dart';
+import '../databases/database_helper.dart';
+import '../models/event.dart';
 import 'search_result_screen.dart';
 import 'event_details_screen.dart';
 import 'events_screen.dart';
-import 'profile_drawer_screen.dart';
-import 'favourites_screan.dart';
+import 'profile_screen.dart';
 import 'add_event_screen.dart';
-import 'upcoming_events_screen.dart';
-import 'popular_events_screen.dart';
+import 'favourites_screan.dart';
+ import 'popular_events_screen.dart';
+ import 'upcoming_events_screen.dart';
 import 'recommended_events_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -23,69 +25,64 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
+  
+  List<Event> popularEvents = [];
+  List<Event> upcomingEvents = [];
+  List<Event> recommendedEvents = [];
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    // Fetch events when screen loads
-    context.read<EventsCubit>().fetchEvents();
+    _loadHomeEvents();
+  }
+
+  Future<void> _loadHomeEvents() async {
+    setState(() => isLoading = true);
+    
+    final db = DatabaseHelper.instance;
+    final userCubit = context.read<UserCubit>();
+    final userState = userCubit.state;
+    
+    List<String> userCategories = [];
+    if (userState is UserLoaded) {
+      userCategories = userState.user.selectedCategories;
+    }
+    
+    try {
+      // Load limited events for home screen (4 each)
+      final popular = await db.getPopularEvents(limit: 4);
+      final upcoming = await db.getUpcomingEventsByPreferences(userCategories, limit: 4);
+      final recommended = await db.getRecommendedEvents(userCategories, limit: 4);
+      
+      setState(() {
+        popularEvents = popular;
+        upcomingEvents = upcoming;
+        recommendedEvents = recommended;
+        isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading events: $e');
+      setState(() => isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: BlocBuilder<EventsCubit, EventsState>(
-        builder: (context, state) {
-          if (state is EventsLoading) {
-            return const Center(
+      body: isLoading
+          ? const Center(
               child: CircularProgressIndicator(
                 color: Color.fromARGB(255, 66, 22, 79),
               ),
-            );
-          }
-
-          if (state is EventsError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.error_outline,
-                    size: 60,
-                    color: Colors.red,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    state.message,
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => context.read<EventsCubit>().fetchEvents(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange[400],
-                    ),
-                    child: const Text('Retry',
-                        style: TextStyle(color: Colors.white)),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          if (state is EventsLoaded) {
-            return _buildHomeContent(state.events);
-          }
-
-          return const Center(child: Text('No events available'));
-        },
-      ),
+            )
+          : _buildHomeContent(),
       bottomNavigationBar: _buildBottomNavBar(),
     );
   }
 
-  Widget _buildHomeContent(List events) {
+  Widget _buildHomeContent() {
     return SafeArea(
       child: Column(
         children: [
@@ -156,38 +153,87 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 20),
 
           Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  // Upcoming Events Section
-                  _buildSectionHeader(context, 'Upcoming Events', () {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => const UpcomingEventsScreen(),
-    ),
-  );
-}),
+            child: RefreshIndicator(
+              onRefresh: _loadHomeEvents,
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    // Upcoming Events Section
+                    _buildSectionHeader(context, 'Upcoming Events', () {
+                      // Navigate to UpcomingEventsScreen
+                      // Navigator.push(context, MaterialPageRoute(builder: (context) => const UpcomingEventsScreen()));
+                    }),
+                    const SizedBox(height: 12),
+                    if (upcomingEvents.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Text(
+                          'No upcoming events match your interests',
+                          style: TextStyle(color: Colors.grey[600]),
+                          textAlign: TextAlign.center,
+                        ),
+                      )
+                    else
+                      ...upcomingEvents.map((event) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _buildUpcomingEventCard(context, event),
+                          )),
+                    const SizedBox(height: 24),
 
-_buildSectionHeader(context, 'Popular Now', () {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => const PopularEventsScreen(),
-    ),
-  );
-}),
+                    // Popular Now Section
+                    _buildSectionHeader(context, 'Popular Now', () {
+                      // Navigate to PopularEventsScreen
+                      // Navigator.push(context, MaterialPageRoute(builder: (context) => const PopularEventsScreen()));
+                    }),
+                    const SizedBox(height: 12),
+                    if (popularEvents.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Text(
+                          'No popular events available',
+                          style: TextStyle(color: Colors.grey[600]),
+                          textAlign: TextAlign.center,
+                        ),
+                      )
+                    else
+                      SizedBox(
+                        height: 280,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: popularEvents.length,
+                          itemBuilder: (context, index) {
+                            final event = popularEvents[index];
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 16),
+                              child: _buildPopularCard(context, event),
+                            );
+                          },
+                        ),
+                      ),
+                    const SizedBox(height: 24),
 
-_buildSectionHeader(context, 'Recommendations for you', () {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => const RecommendedEventsScreen(),
-    ),
-  );
-}),
-                  const SizedBox(height: 80),
-                ],
+                    // Recommendations Section
+                    _buildSectionHeader(context, 'Recommendations for you', () {
+                      // Navigate to RecommendedEventsScreen
+                      // Navigator.push(context, MaterialPageRoute(builder: (context) => const RecommendedEventsScreen()));
+                    }),
+                    const SizedBox(height: 12),
+                    if (recommendedEvents.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Text(
+                          'No recommendations available',
+                          style: TextStyle(color: Colors.grey[600]),
+                          textAlign: TextAlign.center,
+                        ),
+                      )
+                    else
+                      ...recommendedEvents.map((event) =>
+                          _buildRecommendationCard(context, event)),
+                    const SizedBox(height: 80),
+                  ],
+                ),
               ),
             ),
           ),
@@ -243,22 +289,15 @@ _buildSectionHeader(context, 'Recommendations for you', () {
     );
   }
 
-  Widget _buildUpcomingEventCard(
-    BuildContext context,
-    event,
-  ) {
+  Widget _buildUpcomingEventCard(BuildContext context, Event event) {
     return GestureDetector(
-      onTap: () async {
-        final eventData =
-            await context.read<EventsCubit>().getEventById(event.id);
-        if (eventData != null && mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => EventDetailsScreen(event: eventData),
-            ),
-          );
-        }
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EventDetailsScreen(event: event),
+          ),
+        );
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -302,6 +341,8 @@ _buildSectionHeader(context, 'Recommendations for you', () {
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 6),
                       Row(
@@ -309,11 +350,14 @@ _buildSectionHeader(context, 'Recommendations for you', () {
                           const Icon(Icons.location_on_outlined,
                               size: 14, color: Colors.grey),
                           const SizedBox(width: 4),
-                          Text(
-                            event.location,
-                            style: TextStyle(
-                              color: Colors.grey.shade600,
-                              fontSize: 12,
+                          Expanded(
+                            child: Text(
+                              event.location,
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 12,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -345,22 +389,15 @@ _buildSectionHeader(context, 'Recommendations for you', () {
     );
   }
 
-  Widget _buildPopularCard(
-    BuildContext context,
-    event,
-  ) {
+  Widget _buildPopularCard(BuildContext context, Event event) {
     return GestureDetector(
-      onTap: () async {
-        final eventData =
-            await context.read<EventsCubit>().getEventById(event.id);
-        if (eventData != null && mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => EventDetailsScreen(event: eventData),
-            ),
-          );
-        }
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EventDetailsScreen(event: event),
+          ),
+        );
       },
       child: Container(
         width: 200,
@@ -514,22 +551,15 @@ _buildSectionHeader(context, 'Recommendations for you', () {
     );
   }
 
-  Widget _buildRecommendationCard(
-    BuildContext context,
-    event,
-  ) {
+  Widget _buildRecommendationCard(BuildContext context, Event event) {
     return GestureDetector(
-      onTap: () async {
-        final eventData =
-            await context.read<EventsCubit>().getEventById(event.id);
-        if (eventData != null && mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => EventDetailsScreen(event: eventData),
-            ),
-          );
-        }
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EventDetailsScreen(event: event),
+          ),
+        );
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -582,11 +612,14 @@ _buildSectionHeader(context, 'Recommendations for you', () {
                           const Icon(Icons.location_on_outlined,
                               size: 12, color: Colors.grey),
                           const SizedBox(width: 4),
-                          Text(
-                            event.location,
-                            style: TextStyle(
-                              color: Colors.grey.shade600,
-                              fontSize: 11,
+                          Expanded(
+                            child: Text(
+                              event.location,
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 11,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -644,38 +677,32 @@ _buildSectionHeader(context, 'Recommendations for you', () {
             _currentIndex = index;
           });
 
-          // Handle navigation
           switch (index) {
             case 0:
-              // Already on Explore (Home)
               break;
             case 1:
-              // Navigate to Events Screen
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const EventsScreen()),
               );
               break;
             case 2:
-              // Add event (center button)
               Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const AddEventScreen()),
-    );
+                context,
+                MaterialPageRoute(builder: (context) => const AddEventScreen()),
+              );
               break;
             case 3:
-              // Favorites
               Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const FavoritesScreen()),
-    );
+                context,
+                MaterialPageRoute(builder: (context) => const FavoritesScreen()),
+              );
               break;
             case 4:
-              // Navigate to Profile Drawer
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => const ProfileDrawerScreen()),
+                    builder: (context) => const ProfileScreen()),
               );
               break;
           }

@@ -17,32 +17,28 @@ class DatabaseHelper {
     return _database!;
   }
 
+
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
+    if (oldVersion < 3) {
+      // Drop and recreate tables for major changes
       await db.execute('DROP TABLE IF EXISTS users');
-      await db.execute('''
-        CREATE TABLE users (
-          id TEXT PRIMARY KEY,
-          email TEXT UNIQUE NOT NULL,
-          username TEXT UNIQUE NOT NULL,
-          password TEXT NOT NULL,
-          profilePhotoUrl TEXT,
-          selectedCategories TEXT,
-          createdAt TEXT NOT NULL
-        )
-      ''');
+      await db.execute('DROP TABLE IF EXISTS events');
+      await db.execute('DROP TABLE IF EXISTS event_participants');
+      await db.execute('DROP TABLE IF EXISTS favorites');
+      await db.execute('DROP TABLE IF EXISTS session');
+      await _createDB(db, newVersion);
     }
   }
 
@@ -61,6 +57,7 @@ class DatabaseHelper {
         password $textType,
         profilePhotoUrl $textNullable,
         selectedCategories $textNullable,
+        isEmailVerified INTEGER DEFAULT 0,
         createdAt $textType
       )
     ''');
@@ -74,7 +71,7 @@ class DatabaseHelper {
       )
     ''');
 
-    // Events table
+    // Events table with category and timestamps
     await db.execute('''
       CREATE TABLE events (
         id $idType,
@@ -87,15 +84,20 @@ class DatabaseHelper {
         organizerName $textType,
         organizerImageUrl $textType,
         attendeesCount $intType,
-        category $textNullable
+        category $textNullable,
+        createdBy $textNullable,
+        createdAt $textType,
+        eventDateTime TEXT
       )
     ''');
     
     // Favorites table
     await db.execute('''
       CREATE TABLE favorites (
-        eventId TEXT PRIMARY KEY,
-        userId TEXT NOT NULL
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        eventId TEXT NOT NULL,
+        userId TEXT NOT NULL,
+        UNIQUE(eventId, userId)
       )
     ''');
 
@@ -111,7 +113,6 @@ class DatabaseHelper {
     ''');
   }
 
-  // Hash password
   String _hashPassword(String password) {
     return sha256.convert(utf8.encode(password)).toString();
   }
@@ -125,7 +126,6 @@ class DatabaseHelper {
   }) async {
     final db = await database;
     
-    // Check if email exists
     final emailCheck = await db.query(
       'users',
       where: 'email = ?',
@@ -136,7 +136,6 @@ class DatabaseHelper {
       throw Exception('Email already exists');
     }
 
-    // Check if username exists
     final usernameCheck = await db.query(
       'users',
       where: 'username = ?',
@@ -157,6 +156,7 @@ class DatabaseHelper {
       'password': hashedPassword,
       'profilePhotoUrl': null,
       'selectedCategories': '',
+      'isEmailVerified': 0,
       'createdAt': DateTime.now().toIso8601String(),
     });
 
@@ -165,6 +165,16 @@ class DatabaseHelper {
       email: email.toLowerCase(),
       username: username,
       selectedCategories: [],
+    );
+  }
+
+  Future<void> verifyUserEmail(String email) async {
+    final db = await database;
+    await db.update(
+      'users',
+      {'isEmailVerified': 1},
+      where: 'email = ?',
+      whereArgs: [email.toLowerCase()],
     );
   }
 
@@ -240,7 +250,6 @@ class DatabaseHelper {
   Future<UserModel> updateUsername(String userId, String newUsername) async {
     final db = await database;
     
-    // Check if username is already taken
     final existing = await db.query(
       'users',
       where: 'username = ? AND id != ?',
@@ -309,26 +318,6 @@ class DatabaseHelper {
     );
   }
 
-  Future<bool> checkUsernameExists(String username) async {
-    final db = await database;
-    final results = await db.query(
-      'users',
-      where: 'username = ?',
-      whereArgs: [username.toLowerCase()],
-    );
-    return results.isNotEmpty;
-  }
-
-  Future<bool> checkEmailExists(String email) async {
-    final db = await database;
-    final results = await db.query(
-      'users',
-      where: 'email = ?',
-      whereArgs: [email.toLowerCase()],
-    );
-    return results.isNotEmpty;
-  }
-
   Future<void> resetPassword(String email, String newPassword) async {
     final db = await database;
     
@@ -352,15 +341,29 @@ class DatabaseHelper {
     );
   }
 
+    Future<bool> checkUsernameExists(String username) async {
+    final db = await database;
+    final result = await db.query(
+      'users',
+      where: 'username = ?',
+      whereArgs: [username],
+    );
+    return result.isNotEmpty;
+  }
+
+
   // ========== EVENT METHODS ==========
   
-  Future<void> insertEvent(Event event) async {
+  Future<void> insertEvent(Event event, {String? userId}) async {
     final db = await database;
     await db.insert(
       'events',
       {
         ...event.toJson(),
         'category': event.category ?? '',
+        'createdBy': userId,
+        'createdAt': DateTime.now().toIso8601String(),
+        'eventDateTime': event.date,
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
@@ -369,10 +372,7 @@ class DatabaseHelper {
   Future<List<Event>> getAllEvents() async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query('events');
-
-    return List.generate(maps.length, (i) {
-      return Event.fromJson(maps[i]);
-    });
+    return List.generate(maps.length, (i) => Event.fromJson(maps[i]));
   }
 
   Future<Event?> getEventById(String id) async {
@@ -387,15 +387,6 @@ class DatabaseHelper {
     return Event.fromJson(maps.first);
   }
 
-  Future<void> deleteEvent(String id) async {
-    final db = await database;
-    await db.delete(
-      'events',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
-  }
-
   Future<void> updateEvent(Event event) async {
     final db = await database;
     await db.update(
@@ -406,27 +397,34 @@ class DatabaseHelper {
     );
   }
 
-  // ========== EVENT PARTICIPATION METHODS ==========
+  // ========== EVENT PARTICIPATION (JOIN) METHODS ==========
   
   Future<void> joinEvent(String eventId, String userId) async {
     final db = await database;
     
-    try {
-      await db.insert('event_participants', {
-        'eventId': eventId,
-        'userId': userId,
-        'joinedAt': DateTime.now().toIso8601String(),
-      });
+    // Check if already joined
+    final existing = await db.query(
+      'event_participants',
+      where: 'eventId = ? AND userId = ?',
+      whereArgs: [eventId, userId],
+    );
 
-      // Increment attendees count
-      await db.rawUpdate(
-        'UPDATE events SET attendeesCount = attendeesCount + 1 WHERE id = ?',
-        [eventId],
-      );
-    } catch (e) {
-      // Already joined
+    if (existing.isNotEmpty) {
       throw Exception('Already joined this event');
     }
+
+    // Insert participation record
+    await db.insert('event_participants', {
+      'eventId': eventId,
+      'userId': userId,
+      'joinedAt': DateTime.now().toIso8601String(),
+    });
+
+    // Increment attendees count
+    await db.rawUpdate(
+      'UPDATE events SET attendeesCount = attendeesCount + 1 WHERE id = ?',
+      [eventId],
+    );
   }
 
   Future<void> leaveEvent(String eventId, String userId) async {
@@ -439,7 +437,6 @@ class DatabaseHelper {
     );
 
     if (deleted > 0) {
-      // Decrement attendees count
       await db.rawUpdate(
         'UPDATE events SET attendeesCount = MAX(0, attendeesCount - 1) WHERE id = ?',
         [eventId],
@@ -457,57 +454,183 @@ class DatabaseHelper {
     return results.isNotEmpty;
   }
 
-  Future<List<Event>> getPopularEvents({int limit = 10}) async {
+  // Get user's joined events (upcoming and past)
+  Future<List<Event>> getUserJoinedEvents(String userId) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT e.* FROM events e
+      INNER JOIN event_participants ep ON e.id = ep.eventId
+      WHERE ep.userId = ?
+      ORDER BY e.eventDateTime DESC
+    ''', [userId]);
+
+    return List.generate(maps.length, (i) => Event.fromJson(maps[i]));
+  }
+
+  // Get user's created events
+  Future<List<Event>> getUserCreatedEvents(String userId) async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query(
       'events',
-      orderBy: 'attendeesCount DESC',
-      limit: limit,
-    );
-
-    return List.generate(maps.length, (i) {
-      return Event.fromJson(maps[i]);
-    });
-  }
-
-  Future<List<Event>> getUpcomingEvents(List<String> userCategories, {int limit = 10}) async {
-    final db = await database;
-    
-    if (userCategories.isEmpty) {
-      final List<Map<String, dynamic>> maps = await db.query(
-        'events',
-        orderBy: 'date ASC',
-        limit: limit,
-      );
-      return List.generate(maps.length, (i) => Event.fromJson(maps[i]));
-    }
-
-    final placeholders = userCategories.map((_) => '?').join(',');
-    final List<Map<String, dynamic>> maps = await db.rawQuery(
-      'SELECT * FROM events WHERE category IN ($placeholders) ORDER BY date ASC LIMIT ?',
-      [...userCategories, limit],
+      where: 'createdBy = ?',
+      whereArgs: [userId],
+      orderBy: 'eventDateTime DESC',
     );
 
     return List.generate(maps.length, (i) => Event.fromJson(maps[i]));
   }
 
-  Future<List<Event>> getRecommendedEvents(List<String> userCategories, {int limit = 10}) async {
+  // Get upcoming events (user joined + created, future dates)
+  Future<List<Event>> getUserUpcomingEvents(String userId) async {
     final db = await database;
+    final now = DateTime.now().toIso8601String();
     
-    if (userCategories.isEmpty) {
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT DISTINCT e.* FROM events e
+      LEFT JOIN event_participants ep ON e.id = ep.eventId
+      WHERE (ep.userId = ? OR e.createdBy = ?)
+      AND e.eventDateTime >= ?
+      ORDER BY e.eventDateTime ASC
+    ''', [userId, userId, now]);
+
+    return List.generate(maps.length, (i) => Event.fromJson(maps[i]));
+  }
+
+  // Get past events (user joined + created, past dates)
+  Future<List<Event>> getUserPastEvents(String userId) async {
+    final db = await database;
+    final now = DateTime.now().toIso8601String();
+    
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT DISTINCT e.* FROM events e
+      LEFT JOIN event_participants ep ON e.id = ep.eventId
+      WHERE (ep.userId = ? OR e.createdBy = ?)
+      AND e.eventDateTime < ?
+      ORDER BY e.eventDateTime DESC
+    ''', [userId, userId, now]);
+
+    return List.generate(maps.length, (i) => Event.fromJson(maps[i]));
+  }
+
+  // Get popular events (sorted by attendees, limit for home screen)
+  Future<List<Event>> getPopularEvents({int limit = 4}) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'events',
+      orderBy: 'attendeesCount DESC, createdAt DESC',
+      limit: limit,
+    );
+
+    return List.generate(maps.length, (i) => Event.fromJson(maps[i]));
+  }
+
+  // Get all popular events for "See All" page
+  Future<List<Event>> getAllPopularEvents() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'events',
+      orderBy: 'attendeesCount DESC, createdAt DESC',
+    );
+
+    return List.generate(maps.length, (i) => Event.fromJson(maps[i]));
+  }
+
+  // Get upcoming events based on user preferences (limit for home)
+  Future<List<Event>> getUpcomingEventsByPreferences(List<String> categories, {int limit = 4}) async {
+    final db = await database;
+    final now = DateTime.now().toIso8601String();
+    
+    if (categories.isEmpty) {
       final List<Map<String, dynamic>> maps = await db.query(
         'events',
-        orderBy: 'date DESC',
+        where: 'eventDateTime >= ?',
+        whereArgs: [now],
+        orderBy: 'eventDateTime ASC',
         limit: limit,
       );
       return List.generate(maps.length, (i) => Event.fromJson(maps[i]));
     }
 
-    final placeholders = userCategories.map((_) => '?').join(',');
-    final List<Map<String, dynamic>> maps = await db.rawQuery(
-      'SELECT * FROM events WHERE category IN ($placeholders) ORDER BY date DESC LIMIT ?',
-      [...userCategories, limit],
-    );
+    final placeholders = categories.map((_) => '?').join(',');
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT * FROM events 
+      WHERE category IN ($placeholders) 
+      AND eventDateTime >= ?
+      ORDER BY eventDateTime ASC 
+      LIMIT ?
+    ''', [...categories, now, limit]);
+
+    return List.generate(maps.length, (i) => Event.fromJson(maps[i]));
+  }
+
+  // Get all upcoming events for "See All"
+  Future<List<Event>> getAllUpcomingEventsByPreferences(List<String> categories) async {
+    final db = await database;
+    final now = DateTime.now().toIso8601String();
+    
+    if (categories.isEmpty) {
+      final List<Map<String, dynamic>> maps = await db.query(
+        'events',
+        where: 'eventDateTime >= ?',
+        whereArgs: [now],
+        orderBy: 'eventDateTime ASC',
+      );
+      return List.generate(maps.length, (i) => Event.fromJson(maps[i]));
+    }
+
+    final placeholders = categories.map((_) => '?').join(',');
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT * FROM events 
+      WHERE category IN ($placeholders)
+      AND eventDateTime >= ?
+      ORDER BY eventDateTime ASC
+    ''', [...categories, now]);
+
+    return List.generate(maps.length, (i) => Event.fromJson(maps[i]));
+  }
+
+  // Get recommended events (latest by preferences, limit for home)
+  Future<List<Event>> getRecommendedEvents(List<String> categories, {int limit = 4}) async {
+    final db = await database;
+    
+    if (categories.isEmpty) {
+      final List<Map<String, dynamic>> maps = await db.query(
+        'events',
+        orderBy: 'createdAt DESC',
+        limit: limit,
+      );
+      return List.generate(maps.length, (i) => Event.fromJson(maps[i]));
+    }
+
+    final placeholders = categories.map((_) => '?').join(',');
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT * FROM events 
+      WHERE category IN ($placeholders)
+      ORDER BY createdAt DESC 
+      LIMIT ?
+    ''', [...categories, limit]);
+
+    return List.generate(maps.length, (i) => Event.fromJson(maps[i]));
+  }
+
+  // Get all recommended events for "See All"
+  Future<List<Event>> getAllRecommendedEvents(List<String> categories) async {
+    final db = await database;
+    
+    if (categories.isEmpty) {
+      final List<Map<String, dynamic>> maps = await db.query(
+        'events',
+        orderBy: 'createdAt DESC',
+      );
+      return List.generate(maps.length, (i) => Event.fromJson(maps[i]));
+    }
+
+    final placeholders = categories.map((_) => '?').join(',');
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT * FROM events 
+      WHERE category IN ($placeholders)
+      ORDER BY createdAt DESC
+    ''', [...categories]);
 
     return List.generate(maps.length, (i) => Event.fromJson(maps[i]));
   }
@@ -519,7 +642,7 @@ class DatabaseHelper {
     await db.insert(
       'favorites',
       {'eventId': eventId, 'userId': userId},
-      conflictAlgorithm: ConflictAlgorithm.replace,
+      conflictAlgorithm: ConflictAlgorithm.ignore,
     );
   }
 
@@ -540,16 +663,6 @@ class DatabaseHelper {
       whereArgs: [userId],
     );
     return List.generate(maps.length, (i) => maps[i]['eventId'] as String);
-  }
-
-  Future<bool> isFavorite(String eventId, String userId) async {
-    final db = await database;
-    final result = await db.query(
-      'favorites',
-      where: 'eventId = ? AND userId = ?',
-      whereArgs: [eventId, userId],
-    );
-    return result.isNotEmpty;
   }
 
   Future<void> close() async {

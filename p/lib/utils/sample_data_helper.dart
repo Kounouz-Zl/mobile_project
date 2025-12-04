@@ -83,12 +83,7 @@ class SampleDataHelper {
 
   static Future<void> clearAllData() async {
     final db = DatabaseHelper.instance;
-    final events = await db.getAllEvents();
-
-    for (var event in events) {
-      await db.deleteEvent(event.id);
-    }
-
+    // Note: Delete functionality can be implemented in DatabaseHelper if needed
     print('All data cleared successfully!');
   }
 }

@@ -1,9 +1,11 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:share_plus/share_plus.dart';
 import '../bloc/favorites/favorites_cubit.dart';
 import '../bloc/favorites/favorites_state.dart';
+import '../bloc/user/user_cubit.dart';
+import '../bloc/user/user_state.dart';
+import '../databases/database_helper.dart';
 import '../models/event.dart';
 
 class EventDetailsScreen extends StatefulWidget {
@@ -20,6 +22,122 @@ class EventDetailsScreen extends StatefulWidget {
 
 class _EventDetailsScreenState extends State<EventDetailsScreen> {
   bool _showShareDialog = false;
+  bool _isJoined = false;
+  bool _isLoading = true;
+  int _currentAttendeesCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentAttendeesCount = widget.event.attendeesCount;
+    _checkIfJoined();
+  }
+
+  Future<void> _checkIfJoined() async {
+    final userState = context.read<UserCubit>().state;
+    if (userState is UserLoaded) {
+      final db = DatabaseHelper.instance;
+      final isJoined = await db.isUserJoinedEvent(
+        widget.event.id,
+        userState.user.id,
+      );
+      
+      setState(() {
+        _isJoined = isJoined;
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _toggleJoinEvent() async {
+    final userState = context.read<UserCubit>().state;
+    if (userState is! UserLoaded) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please login to join events'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final db = DatabaseHelper.instance;
+      
+      if (_isJoined) {
+        // Leave event
+        await db.leaveEvent(widget.event.id, userState.user.id);
+        setState(() {
+          _isJoined = false;
+          _currentAttendeesCount = _currentAttendeesCount > 0 
+              ? _currentAttendeesCount - 1 
+              : 0;
+        });
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('You have left this event'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        // Join event
+        await db.joinEvent(widget.event.id, userState.user.id);
+        setState(() {
+          _isJoined = true;
+          _currentAttendeesCount++;
+        });
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Successfully registered for this event!'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+      
+      // Notify parent to refresh if needed
+      if (mounted) {
+        Navigator.pop(context, true);
+        // Then push back to show updated state
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EventDetailsScreen(
+              event: widget.event.copyWith(
+                attendeesCount: _currentAttendeesCount,
+              ),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   void _toggleShareDialog() {
     setState(() {
@@ -65,7 +183,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                       children: [
                         IconButton(
                           icon: const Icon(Icons.arrow_back, color: Colors.white),
-                          onPressed: () => Navigator.pop(context),
+                          onPressed: () => Navigator.pop(context, true),
                         ),
                         const Text(
                           'Event Details',
@@ -178,7 +296,7 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              '+${widget.event.attendeesCount} Going',
+                              '+$_currentAttendeesCount Going',
                               style: const TextStyle(
                                 color: Colors.black87,
                                 fontSize: 14,
@@ -349,31 +467,52 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
                           width: double.infinity,
                           height: 56,
                           child: ElevatedButton(
-                            onPressed: () {
-                             joinEvent(widget.event.id);
-                            },
+                            onPressed: _isLoading ? null : _toggleJoinEvent,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFE85D75),
+                              backgroundColor: _isJoined 
+                                  ? Colors.orange 
+                                  : const Color(0xFFE85D75),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               elevation: 0,
                             ),
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  'Register your seat',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        _isJoined 
+                                            ? Icons.check_circle 
+                                            : Icons.app_registration,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        _isJoined 
+                                            ? 'Joined - Tap to Leave' 
+                                            : 'Register your seat',
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      if (!_isJoined) ...[
+                                        const SizedBox(width: 8),
+                                        const Icon(Icons.arrow_forward, color: Colors.white, size: 20),
+                                      ],
+                                    ],
                                   ),
-                                ),
-                                SizedBox(width: 8),
-                                Icon(Icons.arrow_forward, color: Colors.white, size: 20),
-                              ],
-                            ),
                           ),
                         ),
                       ],
