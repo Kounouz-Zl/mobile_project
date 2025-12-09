@@ -1,0 +1,178 @@
+// lib/l10n/app_localizations_en.dart
+class AppLocalizationsEn {
+  static const Map<String, String> values = {
+    // Common
+    'app_name': 'Event App',
+    'search': 'Search',
+    'filter': 'Filter',
+    'see_all': 'See All',
+    'cancel': 'Cancel',
+    'save': 'Save',
+    'delete': 'Delete',
+    'edit': 'Edit',
+    'done': 'Done',
+    'next': 'Next',
+    'back': 'Back',
+    'refresh': 'Refresh',
+    'loading': 'Loading...',
+    'error': 'Error',
+    'success': 'Success',
+    'yes': 'Yes',
+    'no': 'No',
+    
+    // Onboarding
+    'find_nearby': 'Find your nearby',
+    'event_here': 'event here',
+    'onboarding_subtitle': 'Discover amazing events happening near you. Connect with people and create memories.',
+    'skip_signup': 'Skip to Sign Up',
+    
+    // Auth
+    'login': 'Login',
+    'signup': 'Signup',
+    'email': 'Email',
+    'password': 'Password',
+    'username': 'Username',
+    'confirm_password': 'Confirm Password',
+    'forgot_password': 'Forgot Password?',
+    'dont_have_account': "Don't have an account? ",
+    'already_have_account': 'Already have an account? ',
+    'welcome_back': 'Welcome Back!',
+    'create_account': 'Create Account',
+    'sign_up_to_start': 'Sign up to get started',
+    'use_credentials': 'Use Credentials to access your account',
+    'enter_email': 'Enter Email',
+    'enter_username': 'Enter Username',
+    'enter_password': 'Enter Password',
+    'login_with_facebook': 'Login with Facebook',
+    'login_with_google': 'Login with Google',
+    'or': 'Or',
+    
+    // User Types
+    'participant': 'Participant',
+    'organization': 'Organization',
+    'sign_up_as': 'Sign Up as',
+    
+    // Email Verification
+    'verify_email': 'Verify Your Email',
+    'verification_code_sent': 'Enter the 6-digit code sent to',
+    'verify_email_button': 'Verify Email',
+    'didnt_receive_code': "Didn't receive the code? ",
+    'resend': 'Resend',
+    'email_verified': 'Email verified successfully!',
+    
+    // Profile Setup
+    'create_username': 'Create Username',
+    'username_changeable': 'Username can be changed at any time',
+    'choose_photo': 'Choose your photo profile',
+    'photo_changeable': 'Photo Profile can be changed at any time',
+    'choose_photo_button': 'Choose Photo',
+    'choose_favorite_event': 'Choose your favorite event',
+    'personalized_recommendations': 'Get personalized event recommendations.',
+    'finish': 'Finish',
+    
+    // Navigation
+    'explore': 'Explore',
+    'events': 'Events',
+    'favorite': 'Favorite',
+    'favorites': 'Favorites',
+    'profile': 'Profile',
+    
+    // Home Screen
+    'upcoming_events': 'Upcoming Events',
+    'popular_now': 'Popular Now',
+    'recommendations': 'Recommendations for you',
+    'search_events': 'Search events...',
+    
+    // Events Screen
+    'upcoming': 'UPCOMING',
+    'past_events': 'PAST EVENTS',
+    'no_upcoming': 'No Upcoming Events',
+    'no_past': 'No Past Events',
+    'explore_events': 'Explore Events',
+    'past': 'Past',
+    'attended': 'Attended',
+    'people_going': 'people going',
+    
+    // Event Details
+    'event_details': 'Event Details',
+    'about_event': 'About Event',
+    'going': 'Going',
+    'follow': 'Follow',
+    'read_more': 'Read More',
+    'register_seat': 'Register your seat',
+    'joined': 'Joined - Tap to Leave',
+    'share_with_friends': 'Share with friends',
+    'join': 'Join',
+    'leave_event': 'Leave Event',
+    'leave_event_confirm': 'Are you sure you want to leave this event?',
+    
+    // Event Registration
+    'event_registration': 'Event Registration',
+    'your_name': 'Your Name',
+    'enter_full_name': 'Enter your full name',
+    'why_interested': 'Why are you interested in this event?',
+    'tell_us_why': 'Tell us why you want to attend...',
+    'register_for_event': 'Register for Event',
+    'registered_successfully': 'Successfully registered for event!',
+    
+    // Add Event
+    'create_new_event': 'Create New Event',
+    'edit_event': 'Edit Event',
+    'event_image': 'Event Image *',
+    'event_title': 'Event Title *',
+    'category': 'Category *',
+    'description': 'Description *',
+    'location_name': 'Location Name *',
+    'location_address': 'Location Address *',
+    'event_date': 'Event Date *',
+    'time': 'Time',
+    'organizer_name': 'Organizer Name *',
+    'create_event': 'Create Event',
+    'update_event': 'Update Event',
+    
+    // Favorites
+    'my_favorites': 'My Favorites',
+    'no_favorites': 'No favorites yet',
+    'start_adding_favorites': 'Start adding events to your favorites!',
+    'added_to_favorites': 'Added to favorites',
+    'removed_from_favorites': 'Removed from favorites',
+    
+    // Profile
+    'edit_profile': 'Edit Profile',
+    'email_address': 'Email Address',
+    'verified': 'Verified',
+    'interests': 'Interests',
+    'change_password': 'Change Password',
+    'notifications': 'Notifications',
+    'account_settings': 'Account Settings',
+    'my_interests': 'My Interests',
+    'logout': 'Logout',
+    'logout_confirm': 'Are you sure you want to logout?',
+    'edit_username': 'Edit Username',
+    'username_updated': 'Username updated successfully!',
+    'edit_interests': 'Edit Interests',
+    'interests_updated': 'Interests updated successfully!',
+    'profile_photo_updated': 'Profile photo updated!',
+    'language': 'Language',
+    'change_language': 'Change language',
+    'select_language': 'Select Language',
+    
+    // Categories
+    'business': 'Business',
+    'community': 'Community',
+    'music_entertainment': 'Music & Entertainment',
+    'health': 'Health',
+    'food_drink': 'Food & drink',
+    'family_education': 'Family & Education',
+    'sport': 'Sport',
+    'fashion': 'Fashion',
+    'film_media': 'Film & Media',
+    'home_lifestyle': 'Home & Lifestyle',
+    'design': 'Design',
+    'gaming': 'Gaming',
+    'science_tech': 'Science & Tech',
+    'school_education': 'School & Education',
+    'holiday': 'Holiday',
+    'travel': 'Travel',
+  };
+}
